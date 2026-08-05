@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sent_db
+    environment:
+      POSTGRES_USER: sent_admin
+      POSTGRES_PASSWORD: sent_secret
+      POSTGRES_DB: sent_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - sent_pgdata:/var/lib/postgresql/data
+    restart: always
+
+  api:
+    build: .
+    container_name: sent_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://sent_admin:sent_secret@db:5432/sent_db
+    depends_on:
+      - db
+    restart: always
+
+volumes:
+  sent_pgdata:
