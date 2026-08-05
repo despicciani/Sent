@@ -54,38 +54,47 @@ def parse_valor_float(valor_str: str) -> float:
     return float(clean_str)
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    """Lê todas as páginas do PDF e consolida o texto extraído."""
-    print(f"extraindo texto de: {pdf_path}...")
     full_text = []
     
     with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            text = page.extract_text(layout=True)
-            if text:
-                full_text.append(text)
+        for page_num, page in enumerate(pdf.pages):
+            # ignora a capa (primeira página) se for apenas cabeçalho de capa
+            if page_num == 0:
+                text_capa = page.extract_text() or ""
+                if "Prefeito" in text_capa and "Gabinete do Prefeito" in text_capa:
+                    continue
+
+            width = page.width
+            height = page.height
+            
+            # divide a página no meio exato (2 colunas)
+            col_esquerda = page.crop((0, 0, width / 2, height)).extract_text()
+            col_direita = page.crop((width / 2, 0, width, height)).extract_text()
+            
+            if col_esquerda:
+                full_text.append(col_esquerda)
+            if col_direita:
+                full_text.append(col_direita)
                 
     texto_completo = "\n".join(full_text)
-    print(f"texto extraído! Total de caracteres: {len(texto_completo)}")
     return texto_completo
 
 def split_into_contract_blocks(text: str) -> list:
-    """
-    Divide o texto inteiro do diário em blocos individuais baseados em palavras-chave típicas de extratos de contratos.
-    """
-    # Regex para identificar início de atos/contratos no DO-RIO
-    delimiter_pattern = r"(?=(?:EXTRATO DE CONTRATO|EXTRATO DE TERMO ADITIVO|EXTRATO DE CONVÊNIO|INSTRUMENTO DE CONTRATO))"
-    
+    """Quebra o diário em extratos usando o delimitador genérico EXTRATO DE."""
+    delimiter_pattern = r"(?=\bEXTRATO\s+DE\b)"
     blocks = re.split(delimiter_pattern, text, flags=re.IGNORECASE)
     
-    # apenas blocos relevantes que contêm menção a valores ou CNPJs
     relevant_blocks = []
     for block in blocks:
-        has_cnpj = bool(re.search(PATTERNS["cnpj"], block))
-        has_valor = bool(re.search(PATTERNS["valor"], block))
-        if has_cnpj or has_valor:
-            relevant_blocks.append(block.strip())
+        # garante que o bloco é um extrato e contém uma menção a Objeto ou Partes
+        is_extrato = re.match(r"^\s*EXTRATO\s+DE", block, re.IGNORECASE)
+        has_objeto_or_partes = bool(re.search(r"\b(?:OBJETO|PARTES)\b", block, re.IGNORECASE))
+        
+        if is_extrato and has_objeto_or_partes:
+            clean_block = re.sub(r"\s+", " ", block).strip()
+            relevant_blocks.append(clean_block)
             
-    print(f"Blocos relevantes de contratos identificados: {len(relevant_blocks)}")
+    print(f"extratos individuais identificados: {len(relevant_blocks)}")
     return relevant_blocks
 
 

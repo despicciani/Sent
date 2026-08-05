@@ -69,19 +69,3 @@ def classify_text(text: str) -> str:
     model = load_or_train_model()
     prediction = model.predict([text])
     return prediction[0]
-
-if __name__ == "__main__":
-    print("testando o classificador de IA do Sent")
-    
-    # frases inéditas que não estavam no dataset de treino
-    test_cases = [
-        "EXTRATO DE CONTRATO Nº 101/2026. CONTRATANTE: SECRETARIA DE EDUCAÇÃO. OBJETO: Aquisição de notebooks e Chromebooks para os professores da rede municipal. VALOR: R$ 500.000,00.",
-        "DISPENSA DE LICITAÇÃO. CONTRATANTE: FUNDO MUNICIPAL DE SAÚDE. OBJETO: Fornecimento de vacinas contra dengue e seringas descartáveis para UPAs. VALOR: R$ 120.000,00.",
-        "TOMADA DE PREÇOS. CONTRATANTE: SECRETARIA DE OBRAS. OBJETO: Serviço de pavimentação asfáltica, tapa-buraco e drenagem na Avenida Brasil. VALOR: R$ 890.000,00.",
-        "INEXIGIBILIDADE. CONTRATANTE: ADMINISTRAÇÃO DIRETA. OBJETO: Licenciamento de software de banco de dados e suporte a servidores na nuvem. VALOR: R$ 45.000,00.",
-    ]
-    
-    for sample in test_cases:
-        categoria = classify_text(sample)
-        print(f"\nTexto: '{sample}'")
-        print(f"🏷️ Categoria Prevista: {categoria}")
