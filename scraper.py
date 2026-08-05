@@ -20,7 +20,7 @@ PATTERNS = {
 }
 
 def download_diario(edicao_id: int) -> str:
-    """Baixa o PDF do DO-RIO a partir do ID da edição.""" #o mais recente eh o do dia 31/07, com o id 14887
+    """Baixa o PDF do DO-RIO a partir do ID da edição.""" # o mais recente eh o do dia 31/07, com o id 14887
     url = f"https://doweb.rio.rj.gov.br/portal/edicoes/download/{edicao_id}"
     file_path = os.path.join(DOWNLOAD_DIR, f"rio_de_janeiro_edicao_{edicao_id}.pdf")
     
