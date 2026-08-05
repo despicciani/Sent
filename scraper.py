@@ -59,8 +59,8 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     full_text = []
     
     with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages):
-            text = page.extract_text()
+        for page in pdf.pages:
+            text = page.extract_text(layout=True)
             if text:
                 full_text.append(text)
                 
