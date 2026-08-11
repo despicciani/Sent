@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 from database import Base
 
 class DiarioOficial(Base):
@@ -28,5 +29,7 @@ class ContratoAuditado(Base):
     categoria = Column(String(50), default="NAO_CLASSIFICADO") # saúde, educação
     texto_contexto = Column(Text, nullable=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
+
+    embedding = Column(Vector(384), nullable=True)
 
     diario = relationship("DiarioOficial", back_populates="contratos")
