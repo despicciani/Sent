@@ -1,4 +1,5 @@
 import os
+from classifier import explain_classification
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import ContratoAuditado
@@ -10,7 +11,7 @@ from langchain_core.messages import HumanMessage
 
 # instancia o LLM 
 llm = ChatGroq(
-    model="llama-3.1-8b-instant",
+    model="llama-3.3-70b-versatile",
     temperature=0.0
 )
 
@@ -50,14 +51,32 @@ def tool_calcula_total_por_categoria(categoria: str) -> str:
     finally:
         db.close()
 
+@tool
+def tool_auditar_classificacao(texto_do_contrato: str) -> str:
+    """
+    ÚTIL PARA: Explicar o POR QUÊ um contrato recebeu determinada categoria. 
+    Use isso quando o usuário perguntar o motivo ou a explicação de uma classificação.
+    """
+    print("\n[Agente usou a ferramenta: Auditoria Híbrida (Scikit-Learn -> LLM)]")
+    
+    # chama a Inteligência Antiga (O Scikit-Learn determinístico)
+    explicacao_ml = explain_classification(texto_do_contrato)
+    
+    # passa a matemática seca para o LLM explicar
+    return f"""
+    O classificador matemático analisou o texto: '{explicacao_ml["texto_analisado"]}'.
+    O modelo concluiu matematicamente que pertence à categoria: '{explicacao_ml["categoria"]}'.
+    O grau de certeza matemática (confidence score) do algoritmo foi de {explicacao_ml["confidence"] * 100:.2f}%.
+    """
+
 # lista de ferramentas disponíveis
-tools = [tool_busca_semantica, tool_calcula_total_por_categoria]
+tools = [tool_busca_semantica, tool_calcula_total_por_categoria, tool_auditar_classificacao]
 
 # cria o grafo de raciocínio do Agente
 agente_auditor = create_agent(llm, tools)
 
 def fazer_pergunta_ao_agente(pergunta: str):
-    print(f"\n{'='*50}\n👤 USUÁRIO: {pergunta}")
+    print(f"\n{'='*50}\nUsuario: {pergunta}")
     
     # Envia a mensagem para o agente
     resultado = agente_auditor.invoke(
@@ -66,12 +85,10 @@ def fazer_pergunta_ao_agente(pergunta: str):
     
     # o langgraph devolve o historico de msgs, sendo a última a final
     resposta_final = resultado["messages"][-1].content
-    print(f"\n🤖 AGENTE SENT: {resposta_final}\n{'='*50}")
+    print(f"\nSent: {resposta_final}\n{'='*50}")
 
 
 if __name__ == "__main__":
-    # Teste 1: Busca Semântica (Vetor)
-    fazer_pergunta_ao_agente("Quais os contratos que falam sobre apresentações musicais e eventos de carnaval?")
+    contrato_exemplo = "OBJETO: Prorrogação de contratação temporária de Médicos para atender necessidade de excepcional interesse público identificada em unidades hospitalares da Secretaria Municipal de Saúde"
     
-    # Teste 2: Banco Relacional (SQL)
-    fazer_pergunta_ao_agente("Faça a matemática exata de quanto dinheiro foi gasto na categoria Infraestrutura.")
+    fazer_pergunta_ao_agente(f"Por que o seguinte contrato foi classificado dessa forma? Contrato: '{contrato_exemplo}'")

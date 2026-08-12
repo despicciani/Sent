@@ -1,5 +1,6 @@
 import os
 import re
+import numpy as np
 import joblib
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -69,3 +70,30 @@ def classify_text(text: str) -> str:
     model = load_or_train_model()
     prediction = model.predict([text])
     return prediction[0]
+
+def explain_classification(text: str) -> dict:
+    """
+    Além de prever a categoria, extrai a probabilidade matemática 
+    (confidence score) gerada pela Regressão Logística do Scikit-Learn.
+    """
+    model = load_or_train_model()
+    texto_processado = extrair_apenas_objeto(text)
+    
+    # pega predição normal
+    predicao = model.predict([texto_processado])[0]
+    
+    # pega as probabilidades matematicas de todas as classes
+    probs = model.predict_proba([texto_processado])[0]
+    
+    # descobre o indice matematico da classe vencedora (a que tem maior probabilidade)
+    classes = model.classes_
+    indice_vencedor = np.where(classes == predicao)[0][0]
+    
+    # pega o grau de certeza
+    confidence = probs[indice_vencedor]
+    
+    return {
+        "categoria": predicao,
+        "confidence": float(confidence),
+        "texto_analisado": texto_processado
+    }
