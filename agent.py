@@ -32,22 +32,20 @@ def tool_busca_semantica(pergunta: str) -> str:
     return resposta
 
 @tool
-def tool_calcula_total_por_categoria(categoria: str) -> str:
+def tool_estatisticas_por_categoria(categoria: str) -> str:
     """
-    ÚTIL PARA: Calcular a soma financeira exata de gastos de uma categoria específica.
-    Exemplo: 'Quanto foi gasto em Saúde?' ou 'Qual o total em Educação?'
+    ÚTIL PARA: Obter a quantidade de contratos E o valor total gasto de uma categoria.
+    Exemplo: 'Quantos contratos de Infraestrutura e qual o total gasto?'
     """
-    print(f"\n[Agente usou a ferramenta: SQL Soma de Gastos] -> Categoria: '{categoria}'")
+    print(f"\n[Agente usou a ferramenta: SQL Estatísticas] -> Categoria: '{categoria}'")
     db: Session = SessionLocal()
-    
-    total = 0
     try:
-        # busca exata ignorando maiúsculas/minúsculas
         contratos = db.query(ContratoAuditado).filter(ContratoAuditado.categoria.ilike(f"%{categoria}%")).all()
-        for c in contratos:
-            if c.valor:
-                total += float(c.valor)
-        return f"o total exato gasto na categoria '{categoria}' foi de R$ {total:,.2f}."
+        total = sum(float(c.valor) for c in contratos if c.valor)
+        quantidade = len(contratos)
+        return f"A categoria '{categoria}' possui {quantidade} contratos registrados. O valor total exato gasto é de R$ {total:,.2f}."
+    except Exception as e:
+        return f"Erro no banco de dados: {str(e)}"
     finally:
         db.close()
 
@@ -59,18 +57,24 @@ def tool_auditar_classificacao(texto_do_contrato: str) -> str:
     """
     print("\n[Agente usou a ferramenta: Auditoria Híbrida (Scikit-Learn -> LLM)]")
     
-    # chama a Inteligência Antiga (O Scikit-Learn determinístico)
-    explicacao_ml = explain_classification(texto_do_contrato)
-    
-    # passa a matemática seca para o LLM explicar
-    return f"""
-    O classificador matemático analisou o texto: '{explicacao_ml["texto_analisado"]}'.
-    O modelo concluiu matematicamente que pertence à categoria: '{explicacao_ml["categoria"]}'.
-    O grau de certeza matemática (confidence score) do algoritmo foi de {explicacao_ml["confidence"] * 100:.2f}%.
-    """
+        # chama a Inteligência Antiga (O Scikit-Learn determinístico)
+    try:
+        explicacao_ml = explain_classification(texto_do_contrato)
+        
+        # passa a matemática seca para o LLM explicar
+        return f"""
+        O classificador matemático analisou o texto: '{explicacao_ml["texto_analisado"]}'.
+        O modelo concluiu matematicamente que pertence à categoria: '{explicacao_ml["categoria"]}'.
+        O grau de certeza matemática (confidence score) do algoritmo foi de {explicacao_ml["confidence"] * 100:.2f}%.
+        """
+
+    except Exception as e:
+        # Blindagem: Se o CSV/Joblib não estiver no Docker, o Agente não crasha a API.
+        # Ele recebe este erro e formula uma desculpa educada para o usuário.
+        return f"Falha no sistema de Machine Learning legado: Arquivo de modelo ou dataset não encontrado no servidor. Erro técnico: {str(e)}"
 
 # lista de ferramentas disponíveis
-tools = [tool_busca_semantica, tool_calcula_total_por_categoria, tool_auditar_classificacao]
+tools = [tool_busca_semantica, tool_estatisticas_por_categoria, tool_auditar_classificacao]
 
 # cria o grafo de raciocínio do Agente
 agente_auditor = create_agent(llm, tools)

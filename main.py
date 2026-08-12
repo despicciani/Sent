@@ -1,80 +1,109 @@
 from typing import List, Optional
-from fastapi import FastAPI, Depends, Query
+from fastapi import FastAPI, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from datetime import datetime
-
+from retrieval import search_similar_contracts
+from agent import agente_auditor, HumanMessage
 from database import get_db
 from models import ContratoAuditado, DiarioOficial
 
 app = FastAPI(
     title="Sent - API de Auditoria Digital",
     description="API REST para consulta e filtragem de contratos auditados nos Diários Oficiais do Rio de Janeiro.",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # esquema de saída (Pydantic Schema) 
 # define exatamente qual formato JSON a API enviará de resposta
 class ContratoResponse(BaseModel):
     id: int
-    diario_id: int
-    cnpj_empresa: Optional[str] = None
-    valor: Optional[float] = None
-    numero_processo: Optional[str] = None
+    cnpj_empresa: Optional[str]
+    valor: Optional[float]
     categoria: str
-    texto_contexto: Optional[str] = None
-    criado_em: datetime
+    texto_contexto: str
 
     class Config:
         from_attributes = True
 
+class EstatisticasResponse(BaseModel):
+    total_contratos: int
+    total_gasto: float
+    distribuicao_categorias: dict
+
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 3
+
+class AgentRequest(BaseModel):
+    question: str
 
 # endpoints
 
-@app.get("/", tags=["Status"])
-def root():
+# rotas versao 1.0.0
+@app.get("/")
+def read_root():
+    return {"status": "Sent API online"}
+
+@app.get("/contratos", response_model=List[ContratoResponse])
+def get_contratos(categoria: Optional[str] = None, limit: int = 20, db: Session = Depends(get_db)):
+    query = db.query(ContratoAuditado)
+    if categoria:
+        query = query.filter(ContratoAuditado.categoria == categoria)
+    return query.limit(limit).all()
+
+@app.get("/estatisticas", response_model=EstatisticasResponse)
+def get_estatisticas(db: Session = Depends(get_db)):
+    total = db.query(func.count(ContratoAuditado.id)).scalar()
+    soma_valores = db.query(func.sum(ContratoAuditado.valor)).scalar() or 0.0
+    
+    distribuicao = db.query(ContratoAuditado.categoria, func.count(ContratoAuditado.id)) \
+                     .group_by(ContratoAuditado.categoria).all()
+    
     return {
-        "sistema": "Sent - Auditor Digital",
-        "status": "online",
-        "documentacao": "/docs"
+        "total_contratos": total,
+        "total_gasto": float(soma_valores),
+        "distribuicao_categorias": {cat: count for cat, count in distribuicao}
     }
 
 
-@app.get("/contratos", response_model=List[ContratoResponse], tags=["Contratos"])
-def listar_contratos(
-    categoria: Optional[str] = Query(None, description="Filtrar por categoria (ex: Saúde, Educação, Infraestrutura)"),
-    limit: int = Query(20, description="Quantidade máxima de registros a retornar"),
-    db: Session = Depends(get_db)
-):
-    """Retorna a lista de contratos auditados, permitindo filtro opcional por categoria."""
-    query = db.query(ContratoAuditado)
+# rotas versao 2.0.0
+@app.post("/api/v2/search")
+def busca_semantica_vetorial(request: SearchRequest):
+    """encontra contratos pelo significado matemático do texto, usando embeddings locais (SentenceTransformers) e pgvector."""
     
-    if categoria:
-        query = query.filter(ContratoAuditado.categoria.ilike(f"%{categoria}%"))
+    try:
+        resultados = search_similar_contracts(request.query, request.top_k)
         
-    contratos = query.order_by(ContratoAuditado.id.desc()).limit(limit).all()
-    return contratos
+        if not resultados:
+            return {"mensagem": "Nenhum contrato semanticamente próximo encontrado."}
+            
+        return [
+            {
+                "id": c.id,
+                "categoria": c.categoria,
+                "valor": float(c.valor) if c.valor else None,
+                "texto": c.texto_contexto[:300] + "..." # retorna apenas um resumo
+            }
+            for c in resultados
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na busca vetorial: {str(e)}")
 
-
-@app.get("/estatisticas", tags=["Estatísticas"])
-def obter_estatisticas(db: Session = Depends(get_db)):
-    """Gera um resumo de gastos totais acumulados e quantidade de auditorias por categoria."""
-    resultado = (
-        db.query(
-            ContratoAuditado.categoria,
-            func.sum(ContratoAuditado.valor).label("total_gasto"),
-            func.count(ContratoAuditado.id).label("total_contratos")
+@app.post("/api/v2/ask")
+def auditar_com_agente_ia(request: AgentRequest):
+    """decide de forma autônoma se deve usar busca vetorial, comandos SQL ou a explicabilidade do Scikit-Learn para responder."""
+    try:
+        resultado = agente_auditor.invoke(
+            {"messages": [HumanMessage(content=request.question)]}
         )
-        .group_by(ContratoAuditado.categoria)
-        .all()
-    )
-    
-    estatisticas = {}
-    for cat, total, count in resultado:
-        estatisticas[cat] = {
-            "total_gasto_brl": round(total, 2) if total else 0.0,
-            "quantidade_contratos": count
-        }
+        # retorna a última mensagem gerada pela IA
+        resposta_final = resultado["messages"][-1].content
         
-    return {"resumo_por_categoria": estatisticas}
+        return {
+            "pergunta": request.question,
+            "resposta_agente": resposta_final
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"erro na execução do agente: {str(e)}")
