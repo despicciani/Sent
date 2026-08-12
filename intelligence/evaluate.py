@@ -1,11 +1,14 @@
+import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 
+_BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
 def gerar_metricas():    
-    df = pd.read_csv('contratos_prefeitura_ruido.csv')
+    df = pd.read_csv(os.path.join(_BASE_DIR, 'data', 'contratos_prefeitura_ruido.csv'))
     
     X_train, X_test, y_train, y_test = train_test_split(
         df['texto'], df['area'], test_size=0.2, random_state=42

@@ -222,22 +222,37 @@ PostgreSQL 16 com extensão **pgvector** para busca vetorial nativa.
 
 ```
 sent/
-├── main.py                          # API REST (FastAPI) — endpoints v1 e v2
-├── agent.py                         # Agente LangGraph com tool-calling (Llama 3.3 70B)
-├── rag.py                           # Pipeline RAG com prompt anti-alucinação
-├── retrieval.py                     # Busca vetorial via cosine_distance (pgvector)
-├── embeddings.py                    # Geração de embeddings (SentenceTransformers)
-├── classifier.py                    # NLP clássico (TF-IDF + LogisticRegression)
-├── scraper.py                       # Pipeline de ingestão: download → crop → regex → classificação
-├── database.py                      # Engine SQLAlchemy + pgvector extension
-├── models.py                        # ORM: DiarioOficial, ContratoAuditado (com Vector)
-├── contratos_prefeitura_ruido.csv   # Dataset de treino com ruído burocrático
-├── sent_classifier.joblib           # Modelo scikit-learn serializado
-├── Dockerfile                       # Imagem Python 3.12-slim
-├── docker-compose.yml               # API + PostgreSQL/pgvector
-├── requirements.txt                 # Dependências do projeto
-├── downloads/                       # PDFs baixados do DO-RIO
-└── tests/                           # Testes
+├── api/                                 # Camada de apresentação (REST)
+│   ├── __init__.py
+│   └── routes.py                        #   Endpoints FastAPI v1 e v2
+│
+├── intelligence/                        # Camada de inteligência (IA + NLP)
+│   ├── __init__.py
+│   ├── agent.py                         #   Agente LangGraph com tool-calling
+│   ├── rag.py                           #   Pipeline RAG com prompt anti-alucinação
+│   ├── retrieval.py                     #   Busca vetorial via cosine_distance
+│   ├── embeddings.py                    #   Geração de embeddings (SentenceTransformers)
+│   ├── classifier.py                    #   NLP clássico (TF-IDF + LogisticRegression)
+│   └── evaluate.py                      #   Métricas do classificador (Precision/Recall/F1)
+│
+├── ingestion/                           # Camada de ingestão de dados
+│   ├── __init__.py
+│   └── scraper.py                       #   Download → crop vertical → regex → classificação
+│
+├── db/                                  # Camada de persistência
+│   ├── __init__.py
+│   ├── database.py                      #   Engine SQLAlchemy + extensão pgvector
+│   └── models.py                        #   ORM: DiarioOficial, ContratoAuditado (Vector)
+│
+├── data/                                # Dados de treino
+│   └── contratos_prefeitura_ruido.csv   #   Dataset com ruído burocrático intencional
+│
+├── main.py                              # Entry point (uvicorn)
+├── Dockerfile                           # Imagem Python 3.12-slim
+├── docker-compose.yml                   # Orquestração: API + PostgreSQL/pgvector
+├── requirements.txt                     # Dependências
+├── downloads/                           # PDFs baixados do DO-RIO
+└── tests/                               # Testes
 ```
 
 ---
@@ -276,17 +291,17 @@ Isso inicializa:
 
 ```bash
 # Dentro do container
-docker exec -it sent_api python scraper.py
+docker exec -it sent_api python -m ingestion.scraper
 
 # Ou localmente com venv
 source venv/bin/activate
-python scraper.py
+python -m ingestion.scraper
 ```
 
 ### 4. Gerar embeddings dos contratos
 
 ```bash
-docker exec -it sent_api python embeddings.py
+docker exec -it sent_api python -m intelligence.embeddings
 ```
 
 ### 5. Consultar

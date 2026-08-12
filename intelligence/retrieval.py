@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from models import ContratoAuditado
+from db.database import SessionLocal
+from db.models import ContratoAuditado
 from sentence_transformers import SentenceTransformer
 
 # carregamos o mesmo modelo usado dos embeddings

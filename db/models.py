@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
-from database import Base
+from db.database import Base
 
 class DiarioOficial(Base):
     __tablename__ = "diarios_oficiais"

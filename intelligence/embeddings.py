@@ -2,8 +2,8 @@ import os
 import re
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from models import ContratoAuditado
+from db.database import SessionLocal
+from db.models import ContratoAuditado
 
 # baixa e carrega o modelo NLP local
 print("carregando modelo de embeddings")

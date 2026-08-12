@@ -1,9 +1,9 @@
 import os
-from classifier import explain_classification
+from intelligence.classifier import explain_classification
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from models import ContratoAuditado
-from retrieval import search_similar_contracts
+from db.database import SessionLocal
+from db.models import ContratoAuditado
+from intelligence.retrieval import search_similar_contracts
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
 from langchain_core.tools import tool
@@ -69,12 +69,33 @@ def tool_auditar_classificacao(texto_do_contrato: str) -> str:
         """
 
     except Exception as e:
-        # Blindagem: Se o CSV/Joblib não estiver no Docker, o Agente não crasha a API.
-        # Ele recebe este erro e formula uma desculpa educada para o usuário.
         return f"Falha no sistema de Machine Learning legado: Arquivo de modelo ou dataset não encontrado no servidor. Erro técnico: {str(e)}"
 
+
+@tool
+def tool_buscar_contrato_por_id(id_contrato: int) -> str:
+    """
+    ÚTIL PARA: Buscar o texto exato e os detalhes de um contrato específico usando apenas o seu número de ID.
+    Exemplo: 'Me mostre o contrato 13' ou 'Busque o contrato id = 3'.
+    """
+    print(f"\n[Agente usou a ferramenta: SQL Busca por ID] -> ID: {id_contrato}")
+    db: Session = SessionLocal()
+    try:
+        # busca no banco de dados exatamente o contrato que o usuário pediu
+        contrato = db.query(ContratoAuditado).filter(ContratoAuditado.id == id_contrato).first()
+        if not contrato:
+            return f"Aviso ao sistema: Nenhum contrato encontrado com o ID {id_contrato}."
+        
+        # devolve o texto cru para que o LLM possa usar em outras ferramentas
+        return f"Texto original do contrato ID {id_contrato}: '{contrato.texto_contexto}'"
+    except Exception as e:
+        return f"Erro ao acessar o banco de dados: {str(e)}"
+    finally:
+        db.close()
+
+
 # lista de ferramentas disponíveis
-tools = [tool_busca_semantica, tool_estatisticas_por_categoria, tool_auditar_classificacao]
+tools = [tool_busca_semantica, tool_estatisticas_por_categoria, tool_auditar_classificacao, tool_buscar_contrato_por_id]
 
 # cria o grafo de raciocínio do Agente
 agente_auditor = create_agent(llm, tools)
@@ -90,7 +111,6 @@ def fazer_pergunta_ao_agente(pergunta: str):
     # o langgraph devolve o historico de msgs, sendo a última a final
     resposta_final = resultado["messages"][-1].content
     print(f"\nSent: {resposta_final}\n{'='*50}")
-
 
 if __name__ == "__main__":
     contrato_exemplo = "OBJETO: Prorrogação de contratação temporária de Médicos para atender necessidade de excepcional interesse público identificada em unidades hospitalares da Secretaria Municipal de Saúde"

@@ -11,11 +11,8 @@ Scripts/
 *.pkl
 .cache/
 huggingface/
-models/
 downloads/
 *.pdf
-*.csv
-*.json
 *.log
 .git/
 .gitignore

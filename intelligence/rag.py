@@ -1,6 +1,6 @@
 import os
 from openai import OpenAI
-from retrieval import search_similar_contracts
+from intelligence.retrieval import search_similar_contracts
 
 client = OpenAI(api_key=os.environ.get("GROQ_API_KEY"), base_url="https://api.groq.com/openai/v1")
 MODEL_NAME = "llama-3.3-70b-versatile"

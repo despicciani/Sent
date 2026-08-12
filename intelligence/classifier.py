@@ -7,8 +7,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
-MODEL_FILE = "sent_classifier.joblib"
-DATASET_FILE = "contratos_prefeitura_ruido.csv"
+_BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+MODEL_FILE = os.path.join(_BASE_DIR, "data", "sent_classifier.joblib")
+DATASET_FILE = os.path.join(_BASE_DIR, "data", "contratos_prefeitura_ruido.csv")
 
 def extrair_apenas_objeto(texto: str) -> str:
     """
@@ -31,7 +32,7 @@ def train_and_save_model():
     """
     if not os.path.exists(DATASET_FILE):
         raise FileNotFoundError(
-            f"Arquivo '{DATASET_FILE}' não encontrado na raiz do projeto!"
+            f"Arquivo de dataset não encontrado no caminho: {DATASET_FILE}"
         )
 
     df = pd.read_csv(DATASET_FILE, encoding="utf-8-sig")
