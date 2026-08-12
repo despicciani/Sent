@@ -62,7 +62,7 @@ if __name__ == "__main__":
         resposta = answer_question_with_rag(pergunta)
         
         print("\n" + "="*60)
-        print(f"👤 PERGUNTA: {pergunta}")
+        print(f"Pergunta: {pergunta}")
         print("-" * 60)
-        print(f"🤖 SENT INTELLIGENCE:\n{resposta}")
+        print(f"Sent:\n{resposta}")
         print("="*60)
