@@ -1,4 +1,5 @@
 import os
+import re
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -6,34 +7,36 @@ from models import ContratoAuditado
 
 # baixa e carrega o modelo NLP local
 print("carregando modelo de embeddings")
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+
+def extrair_apenas_objeto(texto: str) -> str:
+    """Extrai apenas a parte semântica importante do contrato para evitar ruído."""
+    match = re.search(
+        r"OBJETO(?:\s+DO\s+CONTRATO)?:\s*(.*?)(?=\s*(?:\bVALOR(?:\s+GLOBAL|\s+ESTIMADO|\s+TOTAL)?\b\s*:|\bDOTAÇÃO(?:\s+ORÇAMENTÁRIA)?\b\s*:|\bPRAZO(?:\s+DE\s+VIGÊNCIA|\s+DE\s+CONTRATAÇÃO)?\b\s*:|\bFUNDAMENTO(?:\s+LEGAL)?\b\s*:|\bASSINATURA\b\s*:|\bNATUREZA(?:\s+DA\s+DESPESA)?\b\s*:|\bPROGRAMA(?:\s+DE\s+TRABALHO)?\b\s*:|\bNOTA(?:\s+DE\s+EMPENHO)?\b\s*:|\bPARTES\b\s*:|\bRAZÃO\b\s*:|$))",
+        texto,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if match:
+        return match.group(1).strip()
+    return texto.strip()
 
 def generate_and_save_embeddings():
     """Busca contratos sem embedding no banco, gera o vetor e salva"""
     db: Session = SessionLocal()
     
-    # pega contratos que ainda não tem embedding gerado
-    contratos_sem_vetor = db.query(ContratoAuditado).filter(ContratoAuditado.embedding == None).all()
-    
-    if not contratos_sem_vetor:
-        print("todos os contratos já possuem embeddings")
-        db.close()
-        return
+    contratos = db.query(ContratoAuditado).all()    
 
-    print(f"gerando embeddings para {len(contratos_sem_vetor)} contratos")
-    
-    for contrato in contratos_sem_vetor:
-        # pega o texto do contrato para gerar o vetor de contexto
-        texto_para_vetorizar = contrato.texto_contexto
+    for contrato in contratos:
+        objeto_limpo = extrair_apenas_objeto(contrato.texto_contexto)
         
-        # gera o embedding --- array de 384 dimensões
-        vetor = model.encode(texto_para_vetorizar)
+        # Cria um texto focado na semântica: Categoria + Objeto real
+        texto_semantico = f"Categoria: {contrato.categoria}. Objeto: {objeto_limpo}"
         
-        # salva no banco
+        vetor = model.encode(texto_semantico)
         contrato.embedding = vetor.tolist()
         
     db.commit()
-    print("embeddings gerados e salvos com sucesso no Postgres")
+    print("novos embeddings salvos com sucesso")
     db.close()
 
 if __name__ == "__main__":
