@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage
 
 # instancia o LLM 
 llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="llama-3.1-8b-instant",
     temperature=0.0
 )
 
