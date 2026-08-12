@@ -323,9 +323,3 @@ v2.0 — RAG + Agente de IA
   ├── Agente LangGraph com tool-calling autônomo
   └── Explicabilidade (XAI): scikit-learn + LLM
 ```
-
----
-
-## 📄 Licença
-
-Este projeto é open source e está disponível sob a licença [MIT](LICENSE).
