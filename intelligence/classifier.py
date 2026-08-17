@@ -1,13 +1,15 @@
 import os
 import re
+import numpy as np
 import joblib
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
-MODEL_FILE = "sent_classifier.joblib"
-DATASET_FILE = "contratos_prefeitura_ruido.csv"
+_BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+MODEL_FILE = os.path.join(_BASE_DIR, "data", "sent_classifier.joblib")
+DATASET_FILE = os.path.join(_BASE_DIR, "data", "contratos_prefeitura_ruido.csv")
 
 def extrair_apenas_objeto(texto: str) -> str:
     """
@@ -30,7 +32,7 @@ def train_and_save_model():
     """
     if not os.path.exists(DATASET_FILE):
         raise FileNotFoundError(
-            f"Arquivo '{DATASET_FILE}' não encontrado na raiz do projeto!"
+            f"Arquivo de dataset não encontrado no caminho: {DATASET_FILE}"
         )
 
     df = pd.read_csv(DATASET_FILE, encoding="utf-8-sig")
@@ -69,3 +71,30 @@ def classify_text(text: str) -> str:
     model = load_or_train_model()
     prediction = model.predict([text])
     return prediction[0]
+
+def explain_classification(text: str) -> dict:
+    """
+    Além de prever a categoria, extrai a probabilidade matemática 
+    (confidence score) gerada pela Regressão Logística do Scikit-Learn.
+    """
+    model = load_or_train_model()
+    texto_processado = extrair_apenas_objeto(text)
+    
+    # pega predição normal
+    predicao = model.predict([texto_processado])[0]
+    
+    # pega as probabilidades matematicas de todas as classes
+    probs = model.predict_proba([texto_processado])[0]
+    
+    # descobre o indice matematico da classe vencedora (a que tem maior probabilidade)
+    classes = model.classes_
+    indice_vencedor = np.where(classes == predicao)[0][0]
+    
+    # pega o grau de certeza
+    confidence = probs[indice_vencedor]
+    
+    return {
+        "categoria": predicao,
+        "confidence": float(confidence),
+        "texto_analisado": texto_processado
+    }

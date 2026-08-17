@@ -2,9 +2,9 @@ import os
 import re
 import pdfplumber
 import requests
-from database import engine, SessionLocal, Base
-from models import DiarioOficial, ContratoAuditado
-from classifier import classify_text
+from db.database import engine, SessionLocal, Base
+from db.models import DiarioOficial, ContratoAuditado
+from intelligence.classifier import classify_text
 
 # se nao existir, cria as tabelas no banco de dados
 Base.metadata.create_all(bind=engine)
@@ -283,5 +283,5 @@ def processar_diario_real(edicao_id: int):
 
 
 if __name__ == "__main__":
-    EDICAO_TESTE = 14887
+    EDICAO_TESTE = 14888
     processar_diario_real(EDICAO_TESTE)

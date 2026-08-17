@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: sent_db
     environment:
       POSTGRES_USER: sent_admin
@@ -21,6 +21,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://sent_admin:sent_secret@db:5432/sent_db
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
     depends_on:
       - db
     restart: always
